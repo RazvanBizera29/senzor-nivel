@@ -1,5 +1,5 @@
 # Sistem de Monitorizare Nivel Apă — Bare Metal AVR
-**ATmega328P (Arduino Nano) | avr-gcc | fără Arduino framework**
+**ATmega328P (Arduino Nano) | avr-gcc |**
 
 ---
 
@@ -31,21 +31,6 @@ senzor nivel/
 
 ---
 
-## 1. Instalare toolchain (Windows)
-
-### Optiunea A — avr-gcc de la Zak Kemble (recomandat)
-1. Descarca de la: https://blog.zakkemble.net/avr-gcc-builds/
-   → alege ultima versiune `avr-gcc-XX.X.X-x64-windows.zip`
-2. Dezarchiveaza in `C:\avr-gcc\`
-3. Adauga `C:\avr-gcc\bin` in PATH:
-   - Win+R → `sysdm.cpl` → Advanced → Environment Variables
-   - System variables → `Path` → Edit → New → `C:\avr-gcc\bin`
-4. Verifica in terminal nou:
-   ```
-   avr-gcc --version
-   avrdude --version
-   ```
-
 ### Optiunea B — Scoop (package manager)
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -59,7 +44,7 @@ scoop install avr-gcc
 
 ---
 
-## 2. Schema conexiuni
+## 1. Schema conexiuni
 
 ```
 Arduino Nano              Periferic
@@ -84,7 +69,7 @@ Pompa (12V DC recomandat):
 
 ---
 
-## 3. Calibrare senzor HW-038
+## 2. Calibrare senzor HW-038
 
 **Inainte de primul upload:**
 
@@ -97,7 +82,7 @@ Pompa (12V DC recomandat):
 
 ---
 
-## 4. Compilare si Flash
+## 3. Compilare si Flash
 
 ### Din VS Code
 - **Ctrl+Shift+B** → `Build` (compileaza)
@@ -119,7 +104,7 @@ Device Manager → Ports (COM & LPT) → `USB-SERIAL CH340 (COMx)`
 
 ---
 
-## 5. Consum resurse ATmega328P
+## 4. Consum resurse ATmega328P
 
 Estimat dupa compilare (`make size`):
 
@@ -131,7 +116,7 @@ Estimat dupa compilare (`make size`):
 
 ---
 
-## 6. Protocol Serial (9600 baud, 8N1)
+## 5. Protocol Serial (9600 baud, 8N1)
 
 ### Date trimise de Arduino (la fiecare 500ms):
 ```json
@@ -160,7 +145,7 @@ SP_HIGH:80       — seteaza setpoint oprire (valoare 10-95)
 
 ---
 
-## 7. Display OLED (layout)
+## 6. Display OLED (layout)
 
 ```
 +--------------------------------+
@@ -176,7 +161,7 @@ SP_HIGH:80       — seteaza setpoint oprire (valoare 10-95)
 
 ---
 
-## 8. Logica de control (histerezis)
+## 7. Logica de control (histerezis)
 
 ```
 MOD AUTO:
@@ -194,7 +179,7 @@ ALERTE BUZZER (non-blocking, pe Timer0 millis):
 
 ---
 
-## 9. Registre AVR utilizate (referinta)
+## 8. Registre AVR utilizate (referinta)
 
 | Periferic | Registre | Scop |
 |---|---|---|
