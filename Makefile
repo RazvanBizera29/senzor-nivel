@@ -22,6 +22,7 @@ AVRDUDE = avrdude
 SRC_DIRS = src utils \
            drivers/adc \
            drivers/buzzer \
+           drivers/eeprom \
            drivers/gpio \
            drivers/i2c \
            drivers/interrupt \
@@ -37,6 +38,7 @@ OBJ = $(patsubst %.c, build/%.o, $(SRC))
 INC_DIRS = bsp src utils \
            drivers/adc \
            drivers/buzzer \
+           drivers/eeprom \
            drivers/gpio \
            drivers/i2c \
            drivers/interrupt \
@@ -61,31 +63,4 @@ LDFLAGS = -mmcu=$(MCU) -Wl,--gc-sections
 all: dirs $(TARGET).hex size
 
 dirs:
-	@mkdir -p $(sort $(dir $(OBJ)))
-
-build/%.o: %.c
-	@echo "  CC  $<"
-	@$(CC) $(CFLAGS) -c $< -o $@
-
-$(TARGET).elf: $(OBJ)
-	@echo "  LD  $@"
-	@$(CC) $(LDFLAGS) -o $@ $^
-
-$(TARGET).hex: $(TARGET).elf
-	@echo "  HEX $@"
-	@$(OBJCOPY) -O ihex -R .eeprom $< $@
-
-size: $(TARGET).elf
-	@echo ""
-	@$(SIZE) --format=avr --mcu=$(MCU) $<
-
-flash: $(TARGET).hex
-	$(AVRDUDE) -c $(PROGRAMMER) -p $(MCU) -P $(PORT) -b $(AVRDUDE_BAUD) \
-	           -U flash:w:$<:i
-
-disasm: $(TARGET).elf
-	$(OBJDUMP) -d -S $< > $(TARGET).lst
-
-clean:
-	@rm -rf build $(TARGET).elf $(TARGET).hex $(TARGET).lst
-	@echo "  CLEAN done"
+	@mkdir -p $(so

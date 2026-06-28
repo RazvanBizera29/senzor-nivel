@@ -9,6 +9,7 @@
  *  - Receptie comenzi serial de la PC
  *  - Gestionare butoane UP/DOWN (setpoint)
  *  - Gestionare buzzer (alerta)
+ *  - Persistenta setpoint-uri in EEPROM
  */
 
 #include <string.h>
@@ -26,6 +27,7 @@
 #include "gpio.h"
 #include "buzzer.h"
 #include "ssd1306.h"
+#include "eeprom.h"
 
 /* ================================================================
  * STARE APLICATIE
@@ -99,11 +101,13 @@ static void buttons_poll(void)
     if (!GPIO_READ(NANO_PIN_BTN_UP_PIN, NANO_PIN_BTN_UP_BIT)) {
         sp_low  = CLAMP(sp_low  + 5, SP_LOW_MIN,  sp_high - SP_GAP_MIN);
         sp_high = CLAMP(sp_high + 5, sp_low + SP_GAP_MIN, SP_HIGH_MAX);
+        eeprom_save_setpoints(sp_low, sp_high);
         t_btn = now;
     }
     if (!GPIO_READ(NANO_PIN_BTN_DN_PIN, NANO_PIN_BTN_DN_BIT)) {
         sp_high = CLAMP(sp_high - 5, sp_low + SP_GAP_MIN, SP_HIGH_MAX);
         sp_low  = CLAMP(sp_low  - 5, SP_LOW_MIN, sp_high - SP_GAP_MIN);
+        eeprom_save_setpoints(sp_low, sp_high);
         t_btn = now;
     }
 }
@@ -157,8 +161,10 @@ static void serial_receive(void)
                 GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
             } else if (!strncmp(buf, "SP_LOW:", 7)) {
                 sp_low = CLAMP((int16_t)atoi(buf + 7), SP_LOW_MIN, sp_high - SP_GAP_MIN);
+                eeprom_save_setpoints(sp_low, sp_high);
             } else if (!strncmp(buf, "SP_HIGH:", 8)) {
                 sp_high = CLAMP((int16_t)atoi(buf + 8), sp_low + SP_GAP_MIN, SP_HIGH_MAX);
+                eeprom_save_setpoints(sp_low, sp_high);
             }
             idx = 0;
         } else if (idx < 31) {
@@ -249,6 +255,9 @@ static void display_update(void)
  * ================================================================ */
 void water_app_init(void)
 {
+    /* Incarca setpoint-urile salvate din EEPROM */
+    eeprom_load_setpoints(&sp_low, &sp_high);
+
     /* Ecran de bun venit */
     ssd1306_puts_at(2, 10, "Water Level v2.0");
     ssd1306_puts_at(4, 25, "Bare Metal AVR");
