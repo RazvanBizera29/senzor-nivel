@@ -75,6 +75,21 @@
 #define NANO_PIN_BTN_DN_PIN    PIND
 #define NANO_PIN_BTN_DN_BIT    PD5
 
+/* LED Rosu — D8 (PB0) nivel < 20% */
+#define NANO_PIN_LED_R_DDR  DDRB
+#define NANO_PIN_LED_R_PORT PORTB
+#define NANO_PIN_LED_R_BIT  PB0
+
+/* LED Galben — D9 (PB1) nivel 20-80% */
+#define NANO_PIN_LED_Y_DDR  DDRB
+#define NANO_PIN_LED_Y_PORT PORTB
+#define NANO_PIN_LED_Y_BIT  PB1
+
+/* LED Verde — D10 (PB2) nivel > 80% */
+#define NANO_PIN_LED_G_DDR  DDRB
+#define NANO_PIN_LED_G_PORT PORTB
+#define NANO_PIN_LED_G_BIT  PB2
+
 /* ================================================================
  * OLED SSD1306 (I2C)
  * ================================================================ */

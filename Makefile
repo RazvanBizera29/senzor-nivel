@@ -8,8 +8,8 @@ TARGET   = water_level
 
 # ---- Programmer ----
 PROGRAMMER   = arduino
-PORT         = COM3         # <-- Schimba cu portul tau (Device Manager)
-AVRDUDE_BAUD = 115200
+PORT         = COM3
+AVRDUDE_BAUD = 57600
 
 # ---- Toolchain ----
 CC      = avr-gcc
@@ -31,8 +31,8 @@ SRC_DIRS = src utils \
            drivers/uart
 
 # ---- Surse si obiecte ----
-SRC = $(foreach d, $(SRC_DIRS), $(wildcard $(d)/*.c))
-OBJ = $(patsubst %.c, build/%.o, $(SRC))
+SRC = $(foreach d,$(SRC_DIRS),$(wildcard $(d)/*.c))
+OBJ = $(patsubst %.c,build/%.o,$(SRC))
 
 # ---- Include paths ----
 INC_DIRS = bsp src utils \
@@ -46,7 +46,7 @@ INC_DIRS = bsp src utils \
            drivers/timer \
            drivers/uart
 
-INCLUDES = $(addprefix -I, $(INC_DIRS))
+INCLUDES = $(addprefix -I,$(INC_DIRS))
 
 # ---- Flags compilare ----
 CFLAGS  = -mmcu=$(MCU) -DF_CPU=$(F_CPU)
@@ -63,4 +63,31 @@ LDFLAGS = -mmcu=$(MCU) -Wl,--gc-sections
 all: dirs $(TARGET).hex size
 
 dirs:
-	@mkdir -p $(so
+	mkdir -p $(sort $(dir $(OBJ)))
+
+build/%.o: %.c
+	@echo "  CC  $<"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(TARGET).elf: $(OBJ)
+	@echo "  LD  $@"
+	$(CC) $(LDFLAGS) -o $@ $^
+
+$(TARGET).hex: $(TARGET).elf
+	@echo "  HEX $@"
+	$(OBJCOPY) -O ihex -R .eeprom $< $@
+
+size: $(TARGET).elf
+	@echo ""
+	$(SIZE) -t $<
+
+flash: $(TARGET).hex
+	$(AVRDUDE) -c $(PROGRAMMER) -p $(MCU) -P $(PORT) -b $(AVRDUDE_BAUD) \
+	           -U flash:w:$<:i
+
+disasm: $(TARGET).elf
+	$(OBJDUMP) -d -S $< > $(TARGET).lst
+
+clean:
+	rm -rf build $(TARGET).elf $(TARGET).hex $(TARGET).lst
+	@echo "  CLEAN done"

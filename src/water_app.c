@@ -75,6 +75,27 @@ static int16_t adc_to_level(uint16_t raw)
 }
 
 /* ================================================================
+ * CONTROL LED-URI STATUS
+ *  nivel <  20% → Rosu  (CRIT_LOW)
+ *  nivel >= 80% → Verde (aproape plin)
+ *  altfel        → Galben (nivel mediu)
+ * Un singur LED activ la un moment dat.
+ * ================================================================ */
+static void leds_update(void)
+{
+    GPIO_LOW(NANO_PIN_LED_R_PORT, NANO_PIN_LED_R_BIT);
+    GPIO_LOW(NANO_PIN_LED_Y_PORT, NANO_PIN_LED_Y_BIT);
+    GPIO_LOW(NANO_PIN_LED_G_PORT, NANO_PIN_LED_G_BIT);
+
+    if (level_pct < 20)
+        GPIO_HIGH(NANO_PIN_LED_R_PORT, NANO_PIN_LED_R_BIT);
+    else if (level_pct >= 80)
+        GPIO_HIGH(NANO_PIN_LED_G_PORT, NANO_PIN_LED_G_BIT);
+    else
+        GPIO_HIGH(NANO_PIN_LED_Y_PORT, NANO_PIN_LED_Y_BIT);
+}
+
+/* ================================================================
  * CONTROL POMPA — HISTEREZIS
  * ================================================================ */
 static void pump_control(void)
@@ -129,6 +150,10 @@ static void serial_send(void)
     if (level_pct <= ALERT_LEVEL_LOW)       uart_puts("CRIT_LOW");
     else if (level_pct >= ALERT_LEVEL_HIGH) uart_puts("CRIT_HIGH");
     else                                    uart_puts("OK");
+    uart_puts("\",\"led\":\"");
+    if (level_pct < 20)        uart_puts("RED");
+    else if (level_pct >= 80)  uart_puts("GREEN");
+    else                       uart_puts("YELLOW");
     uart_puts("\"}\r\n");
 }
 
@@ -297,6 +322,7 @@ void water_app_run(void)
             buzzer_set_mode(BUZZER_OFF);
 
         pump_control();
+        leds_update();
         t_sensor = now;
     }
 

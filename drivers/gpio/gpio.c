@@ -29,4 +29,16 @@ void gpio_init(void)
     /* Buton DOWN: intrare + pull-up */
     GPIO_INPUT(NANO_PIN_BTN_DN_DDR,   NANO_PIN_BTN_DN_BIT);
     GPIO_PULLUP(NANO_PIN_BTN_DN_PORT, NANO_PIN_BTN_DN_BIT);
+
+    /* LED Rosu D8: iesire, initial OFF */
+    GPIO_OUTPUT(NANO_PIN_LED_R_DDR, NANO_PIN_LED_R_BIT);
+    GPIO_LOW(NANO_PIN_LED_R_PORT,   NANO_PIN_LED_R_BIT);
+
+    /* LED Galben D9: iesire, initial OFF */
+    GPIO_OUTPUT(NANO_PIN_LED_Y_DDR, NANO_PIN_LED_Y_BIT);
+    GPIO_LOW(NANO_PIN_LED_Y_PORT,   NANO_PIN_LED_Y_BIT);
+
+    /* LED Verde D10: iesire, initial OFF */
+    GPIO_OUTPUT(NANO_PIN_LED_G_DDR, NANO_PIN_LED_G_BIT);
+    GPIO_LOW(NANO_PIN_LED_G_PORT,   NANO_PIN_LED_G_BIT);
 }
