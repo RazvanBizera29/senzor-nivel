@@ -1,6 +1,8 @@
 /*
  * ssd1306.c — Driver OLED SSD1306 128x64 I2C bare metal
  * Scriere directa in page mode, fara framebuffer.
+ * Daca OLED-ul nu e conectat, ssd1306_init() detecteaza si
+ * toate functiile revin imediat (nu blocheaza).
  */
 
 #include <avr/pgmspace.h>
@@ -12,18 +14,21 @@
 #define OLED_ADDR  NANO_OLED_I2C_ADDR
 
 /* ---- Internale ---- */
-static uint8_t cur_page = 0;
-static uint8_t cur_col  = 0;
+static uint8_t cur_page   = 0;
+static uint8_t cur_col    = 0;
+static uint8_t oled_ready = 0;   /* 1 = OLED detectat si initializat */
 
 static void oled_cmd(uint8_t cmd)
 {
+    if (!oled_ready) return;
     uint8_t buf[2] = {0x00, cmd};
     i2c_write_buf(OLED_ADDR, buf, 2);
 }
 
 static void oled_data_stream(const uint8_t *data, uint8_t len)
 {
-    i2c_start((uint8_t)((OLED_ADDR << 1) | 0));
+    if (!oled_ready) return;
+    if (i2c_start((uint8_t)((OLED_ADDR << 1) | 0))) return;
     i2c_write(0x40);
     for (uint8_t i = 0; i < len; i++) i2c_write(data[i]);
     i2c_stop();
@@ -41,6 +46,14 @@ static void oled_set_pos(uint8_t page, uint8_t col)
 /* ---- Init ---- */
 void ssd1306_init(void)
 {
+    /* Testeaza daca OLED-ul raspunde pe I2C */
+    if (i2c_start((uint8_t)((OLED_ADDR << 1) | 0)) != 0) {
+        oled_ready = 0;   /* OLED absent — nu bloca */
+        return;
+    }
+    i2c_stop();
+    oled_ready = 1;
+
     static const uint8_t seq[] = {
         0xAE, 0xD5,0x80, 0xA8,0x3F, 0xD3,0x00,
         0x40, 0x8D,0x14, 0x20,0x02,
@@ -55,6 +68,7 @@ void ssd1306_init(void)
 /* ---- Clear ---- */
 void ssd1306_clear(void)
 {
+    if (!oled_ready) return;
     uint8_t zeros[16] = {0};
     for (uint8_t p = 0; p < 8; p++) {
         oled_set_pos(p, 0);
@@ -64,6 +78,7 @@ void ssd1306_clear(void)
 
 void ssd1306_clear_page(uint8_t page)
 {
+    if (!oled_ready) return;
     uint8_t zeros[16] = {0};
     oled_set_pos(page, 0);
     for (uint8_t c = 0; c < 128; c += 16) oled_data_stream(zeros, 16);
@@ -78,6 +93,7 @@ void ssd1306_set_cursor(uint8_t page, uint8_t col)
 /* ---- Text normal ---- */
 void ssd1306_putchar(char c)
 {
+    if (!oled_ready) return;
     if (c < 0x20 || c > 0x7E) c = '?';
     uint8_t buf[6];
     for (uint8_t i = 0; i < 5; i++)
@@ -109,6 +125,7 @@ static uint8_t expand_bits(uint8_t b)
 
 void ssd1306_putchar_2x(uint8_t page, uint8_t col, char c)
 {
+    if (!oled_ready) return;
     if (c < 0x20 || c > 0x7E) c = '?';
     uint8_t lo[10], hi[10];
     for (uint8_t i = 0; i < 5; i++) {
@@ -134,6 +151,7 @@ void ssd1306_puts_2x(uint8_t page, uint8_t col, const char *s)
 /* ---- Bara nivel ---- */
 void ssd1306_draw_hbar(uint8_t page, uint8_t width)
 {
+    if (!oled_ready) return;
     uint8_t buf[16];
     oled_set_pos(page, 0);
     uint8_t col = 0;
@@ -150,6 +168,7 @@ void ssd1306_draw_hbar(uint8_t page, uint8_t width)
 /* ---- Linie verticala (marker setpoint) ---- */
 void ssd1306_draw_vline(uint8_t page, uint8_t col)
 {
+    if (!oled_ready) return;
     uint8_t b = 0xFF;
     oled_set_pos(page, col);
     oled_data_stream(&b, 1);

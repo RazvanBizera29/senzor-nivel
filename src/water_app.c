@@ -34,6 +34,7 @@
 #include "buzzer.h"
 #include "ssd1306.h"
 #include "eeprom.h"
+#include "delay.h"
 
 /* ================================================================
  * STARE APLICATIE
@@ -104,10 +105,10 @@ static void pump_control(void)
 
     if (!pump_on && level_pct <= (uint8_t)sp_low) {
         pump_on = 1;
-        GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+        GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
     } else if (pump_on && level_pct >= (uint8_t)sp_high) {
         pump_on = 0;
-        GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+        GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
     }
 }
 
@@ -116,8 +117,8 @@ static void pump_control(void)
  * ================================================================ */
 static void pumps_off(void)
 {
-    pump_on  = 0; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
-    drain_on = 0; GPIO_LOW(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
+    pump_on  = 0; GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+    drain_on = 0; GPIO_HIGH(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
 }
 
 /* ================================================================
@@ -149,16 +150,16 @@ static void buttons_poll(uint32_t now)
     if (ev == BTN_PRESSED || ev == BTN_HELD) {
         /* Porneste umplerea daca nivelul e sub sp_high */
         if (level_pct < (uint8_t)sp_high) {
-            drain_on = 0; GPIO_LOW(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
-            pump_on  = 1; GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+            drain_on = 0; GPIO_HIGH(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
+            pump_on  = 1; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
         } else {
             /* Deja plin — opreste */
-            pump_on = 0; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+            pump_on = 0; GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
         }
     } else if (ev == BTN_RELEASED) {
         /* In modul MANUAL oprim pompa la release */
         if (mode == OP_MODE_MANUAL) {
-            pump_on = 0; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+            pump_on = 0; GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
         }
         /* In AUTO pompa continua prin histerezis */
     }
@@ -167,10 +168,10 @@ static void buttons_poll(uint32_t now)
     ev = btn_update(&btn_drain, now);
     if (ev == BTN_HELD) {
         /* Golire: oprim umplerea si pornim golirea */
-        pump_on  = 0; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
-        drain_on = 1; GPIO_HIGH(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
+        pump_on  = 0; GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+        drain_on = 1; GPIO_LOW(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
     } else if (ev == BTN_RELEASED) {
-        drain_on = 0; GPIO_LOW(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
+        drain_on = 0; GPIO_HIGH(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
     }
 }
 
@@ -183,6 +184,7 @@ static void serial_send(void)
     uart_puts("{");
     uart_puts("\"level\":"); uart_put_float1(level_x10);
     uart_puts(",\"pump\":"); uart_puts(pump_on ? "true" : "false");
+    uart_puts(",\"drain\":"); uart_puts(drain_on ? "true" : "false");
     uart_puts(",\"mode\":\""); uart_puts(mode == OP_MODE_AUTO ? "AUTO" : "MANUAL"); uart_puts("\"");
     uart_puts(",\"sp_low\":"); uart_put_int16(sp_low);
     uart_puts(",\"sp_high\":"); uart_put_int16(sp_high);
@@ -215,16 +217,16 @@ static void serial_receive(void)
 
             if (!strcmp(buf, "PUMP_ON")) {
                 pump_on = 1;
-                GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+                GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
             } else if (!strcmp(buf, "PUMP_OFF")) {
                 pump_on = 0;
-                GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+                GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
             } else if (!strcmp(buf, "MODE_AUTO")) {
                 mode = OP_MODE_AUTO;
             } else if (!strcmp(buf, "MODE_MANUAL")) {
                 mode = OP_MODE_MANUAL;
                 pump_on = 0;
-                GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+                GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
             } else if (!strncmp(buf, "SP_LOW:", 7)) {
                 sp_low = CLAMP((int16_t)atoi(buf + 7), SP_LOW_MIN, sp_high - SP_GAP_MIN);
                 eeprom_save_setpoints(sp_low, sp_high);
@@ -328,6 +330,15 @@ void water_app_init(void)
     btn_init(&btn_mode,  &NANO_PIN_BTN_MODE_PIN, NANO_PIN_BTN_MODE_BIT);
     btn_init(&btn_fill,  &NANO_PIN_BTN_UP_PIN,   NANO_PIN_BTN_UP_BIT);
     btn_init(&btn_drain, &NANO_PIN_BTN_DN_PIN,   NANO_PIN_BTN_DN_BIT);
+
+    /* Test LED-uri la startup: toate ON 2s, apoi OFF */
+    GPIO_HIGH(NANO_PIN_LED_R_PORT, NANO_PIN_LED_R_BIT);
+    GPIO_HIGH(NANO_PIN_LED_Y_PORT, NANO_PIN_LED_Y_BIT);
+    GPIO_HIGH(NANO_PIN_LED_G_PORT, NANO_PIN_LED_G_BIT);
+    delay_ms(2000);
+    GPIO_LOW(NANO_PIN_LED_R_PORT, NANO_PIN_LED_R_BIT);
+    GPIO_LOW(NANO_PIN_LED_Y_PORT, NANO_PIN_LED_Y_BIT);
+    GPIO_LOW(NANO_PIN_LED_G_PORT, NANO_PIN_LED_G_BIT);
 
     /* Ecran de bun venit */
     ssd1306_puts_at(2, 10, "Water Level v2.0");

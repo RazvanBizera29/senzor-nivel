@@ -8,7 +8,7 @@ TARGET   = water_level
 
 # ---- Programmer ----
 PROGRAMMER   = arduino
-PORT         = COM3
+PORT         = COM4
 AVRDUDE_BAUD = 57600
 
 # ---- Toolchain ----

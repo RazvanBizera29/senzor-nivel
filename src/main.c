@@ -21,7 +21,7 @@ int main(void)
     sei();
 
     /* 3. Periferice care necesita intreruperi active */
-    ssd1306_init();
+    ssd1306_init();   /* nu bloca daca OLED lipseste — I2C are timeout */
 
     /* 4. Init aplicatie + ecran de bun venit */
     water_app_init();
