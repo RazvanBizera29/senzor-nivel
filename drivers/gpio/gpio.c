@@ -10,9 +10,13 @@
 
 void gpio_init(void)
 {
-    /* Releu pompa: iesire, initial LOW (oprit) */
+    /* Releu pompa umplere D7: iesire, initial LOW (oprit) */
     GPIO_OUTPUT(NANO_PIN_RELAY_DDR, NANO_PIN_RELAY_BIT);
     GPIO_LOW(NANO_PIN_RELAY_PORT,   NANO_PIN_RELAY_BIT);
+
+    /* Releu pompa golire D3: iesire, initial LOW (oprit) */
+    GPIO_OUTPUT(NANO_PIN_DRAIN_DDR, NANO_PIN_DRAIN_BIT);
+    GPIO_LOW(NANO_PIN_DRAIN_PORT,   NANO_PIN_DRAIN_BIT);
 
     /* Buzzer: iesire, initial LOW (mut) */
     GPIO_OUTPUT(NANO_PIN_BUZZ_DDR, NANO_PIN_BUZZ_BIT);

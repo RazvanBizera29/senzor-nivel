@@ -7,22 +7,24 @@
                 "${workspaceFolder}/src",
                 "${workspaceFolder}/utils",
                 "${workspaceFolder}/drivers/adc",
+                "${workspaceFolder}/drivers/button",
                 "${workspaceFolder}/drivers/buzzer",
+                "${workspaceFolder}/drivers/eeprom",
                 "${workspaceFolder}/drivers/gpio",
                 "${workspaceFolder}/drivers/i2c",
                 "${workspaceFolder}/drivers/interrupt",
                 "${workspaceFolder}/drivers/ssd1306",
                 "${workspaceFolder}/drivers/timer",
                 "${workspaceFolder}/drivers/uart",
-                "C:/avr-gcc/avr/include",
-                "C:/avr-gcc/lib/gcc/avr/*/include"
+                "C:/Users/razva/scoop/apps/avr-gcc/current/avr/include",
+                "C:/Users/razva/scoop/apps/avr-gcc/current/lib/gcc/avr/15.2.0/include"
             ],
             "defines": [
                 "F_CPU=16000000UL",
                 "__AVR_ATmega328P__",
                 "BOARD_ARDUINO_NANO"
             ],
-            "compilerPath": "C:/avr-gcc/bin/avr-gcc.exe",
+            "compilerPath": "C:/Users/razva/scoop/shims/avr-gcc.exe",
             "cStandard": "c99",
             "intelliSenseMode": "gcc-x64",
             "compilerArgs": ["-mmcu=atmega328p"]

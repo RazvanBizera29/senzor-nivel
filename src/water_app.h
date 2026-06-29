@@ -15,9 +15,6 @@ typedef enum {
 
 /* Init + loop */
 void water_app_init(void);
-void water_app_run(void);       /* apelat continuu din main loop */
-
-/* Callback pentru butonul MODE (inregistrat la interrupt driver) */
-void water_app_on_mode_btn(void);
+void water_app_run(void);   /* apelat continuu din main loop */
 
 #endif /* WATER_APP_H */

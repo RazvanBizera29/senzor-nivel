@@ -21,6 +21,7 @@ AVRDUDE = avrdude
 # ---- Directoare sursa ----
 SRC_DIRS = src utils \
            drivers/adc \
+           drivers/button \
            drivers/buzzer \
            drivers/eeprom \
            drivers/gpio \
@@ -37,6 +38,7 @@ OBJ = $(patsubst %.c,build/%.o,$(SRC))
 # ---- Include paths ----
 INC_DIRS = bsp src utils \
            drivers/adc \
+           drivers/button \
            drivers/buzzer \
            drivers/eeprom \
            drivers/gpio \

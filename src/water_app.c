@@ -7,9 +7,14 @@
  *  - Update display OLED
  *  - Trimitere JSON pe serial
  *  - Receptie comenzi serial de la PC
- *  - Gestionare butoane UP/DOWN (setpoint)
+ *  - Gestionare 3 butoane cu debounce + hold (driver button.h)
  *  - Gestionare buzzer (alerta)
  *  - Persistenta setpoint-uri in EEPROM
+ *
+ * Butoane:
+ *  D2 (MODE)  — PRESSED: toggle AUTO/MANUAL
+ *  D4 (FILL)  — PRESSED/HELD: porneste pompa umplere pana la sp_high
+ *  D5 (DRAIN) — HELD: porneste pompa golire; RELEASED: opreste
  */
 
 #include <string.h>
@@ -19,6 +24,7 @@
 #include "app_config.h"
 #include "bsp.h"
 #include "utils.h"
+#include "button.h"
 
 /* Drivere */
 #include "adc.h"
@@ -33,35 +39,29 @@
  * STARE APLICATIE
  * ================================================================ */
 static op_mode_t  mode       = OP_MODE_AUTO;
-static uint8_t    pump_on    = 0;
-static int16_t    level_x10  = 0;      /* nivel% × 10, ex: 453 = 45.3% */
-static uint8_t    level_pct  = 0;      /* nivel rotunjit 0-100 */
+static uint8_t    pump_on    = 0;   /* pompa umplere */
+static uint8_t    drain_on   = 0;   /* pompa golire  */
+static int16_t    level_x10  = 0;   /* nivel% × 10, ex: 453 = 45.3% */
+static uint8_t    level_pct  = 0;   /* nivel rotunjit 0-100 */
 static uint16_t   adc_raw    = 0;
 
 static int16_t    sp_low     = SP_LOW_DEFAULT;
 static int16_t    sp_high    = SP_HIGH_DEFAULT;
 
-/* Flag setat din ISR INT0 (callback) */
-static volatile uint8_t mode_btn_flag = 0;
+/* Butoane */
+static btn_t btn_mode;   /* D2 — toggle AUTO/MANUAL */
+static btn_t btn_fill;   /* D4 — umplere rezervor   */
+static btn_t btn_drain;  /* D5 — golire rezervor    */
 
 /* Timing */
 static uint32_t t_sensor  = 0;
 static uint32_t t_serial  = 0;
 static uint32_t t_display = 0;
-static uint32_t t_btn     = 0;
 
 /* Display dirty flags */
 static uint8_t   prev_level = 0xFF;
 static uint8_t   prev_pump  = 0xFF;
 static op_mode_t prev_mode  = (op_mode_t)0xFF;
-
-/* ================================================================
- * CALLBACK BUTON MODE (apelat din ISR)
- * ================================================================ */
-void water_app_on_mode_btn(void)
-{
-    mode_btn_flag = 1;
-}
 
 /* ================================================================
  * CONVERSIE ADC → PROCENTE
@@ -112,24 +112,65 @@ static void pump_control(void)
 }
 
 /* ================================================================
- * CITIRE BUTOANE UP/DOWN (polling cu debounce)
+ * HELPER — opreste ambele pompe
  * ================================================================ */
-static void buttons_poll(void)
+static void pumps_off(void)
 {
-    uint32_t now = millis();
-    if (!ELAPSED(now, t_btn, T_DEBOUNCE_MS)) return;
+    pump_on  = 0; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+    drain_on = 0; GPIO_LOW(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
+}
 
-    if (!GPIO_READ(NANO_PIN_BTN_UP_PIN, NANO_PIN_BTN_UP_BIT)) {
-        sp_low  = CLAMP(sp_low  + 5, SP_LOW_MIN,  sp_high - SP_GAP_MIN);
-        sp_high = CLAMP(sp_high + 5, sp_low + SP_GAP_MIN, SP_HIGH_MAX);
-        eeprom_save_setpoints(sp_low, sp_high);
-        t_btn = now;
+/* ================================================================
+ * CITIRE BUTOANE (polling cu driver debounce + hold)
+ *
+ *  BTN_MODE  (D2): PRESSED → toggle AUTO/MANUAL
+ *  BTN_FILL  (D4): PRESSED/HELD → porneste umplere pana la sp_high
+ *                  (se opreste singur la sp_high sau la release)
+ *  BTN_DRAIN (D5): HELD → pompa golire ON
+ *                  RELEASED → pompa golire OFF
+ * ================================================================ */
+static void buttons_poll(uint32_t now)
+{
+    btn_event_t ev;
+
+    /* --- MODE --- */
+    ev = btn_update(&btn_mode, now);
+    if (ev == BTN_PRESSED) {
+        if (mode == OP_MODE_AUTO) {
+            mode = OP_MODE_MANUAL;
+            pumps_off();
+        } else {
+            mode = OP_MODE_AUTO;
+        }
     }
-    if (!GPIO_READ(NANO_PIN_BTN_DN_PIN, NANO_PIN_BTN_DN_BIT)) {
-        sp_high = CLAMP(sp_high - 5, sp_low + SP_GAP_MIN, SP_HIGH_MAX);
-        sp_low  = CLAMP(sp_low  - 5, SP_LOW_MIN, sp_high - SP_GAP_MIN);
-        eeprom_save_setpoints(sp_low, sp_high);
-        t_btn = now;
+
+    /* --- FILL --- */
+    ev = btn_update(&btn_fill, now);
+    if (ev == BTN_PRESSED || ev == BTN_HELD) {
+        /* Porneste umplerea daca nivelul e sub sp_high */
+        if (level_pct < (uint8_t)sp_high) {
+            drain_on = 0; GPIO_LOW(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
+            pump_on  = 1; GPIO_HIGH(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+        } else {
+            /* Deja plin — opreste */
+            pump_on = 0; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+        }
+    } else if (ev == BTN_RELEASED) {
+        /* In modul MANUAL oprim pompa la release */
+        if (mode == OP_MODE_MANUAL) {
+            pump_on = 0; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+        }
+        /* In AUTO pompa continua prin histerezis */
+    }
+
+    /* --- DRAIN --- */
+    ev = btn_update(&btn_drain, now);
+    if (ev == BTN_HELD) {
+        /* Golire: oprim umplerea si pornim golirea */
+        pump_on  = 0; GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
+        drain_on = 1; GPIO_HIGH(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
+    } else if (ev == BTN_RELEASED) {
+        drain_on = 0; GPIO_LOW(NANO_PIN_DRAIN_PORT, NANO_PIN_DRAIN_BIT);
     }
 }
 
@@ -283,6 +324,11 @@ void water_app_init(void)
     /* Incarca setpoint-urile salvate din EEPROM */
     eeprom_load_setpoints(&sp_low, &sp_high);
 
+    /* Init butoane — debounce 50ms, hold 600ms, repeat 150ms */
+    btn_init(&btn_mode,  &NANO_PIN_BTN_MODE_PIN, NANO_PIN_BTN_MODE_BIT);
+    btn_init(&btn_fill,  &NANO_PIN_BTN_UP_PIN,   NANO_PIN_BTN_UP_BIT);
+    btn_init(&btn_drain, &NANO_PIN_BTN_DN_PIN,   NANO_PIN_BTN_DN_BIT);
+
     /* Ecran de bun venit */
     ssd1306_puts_at(2, 10, "Water Level v2.0");
     ssd1306_puts_at(4, 25, "Bare Metal AVR");
@@ -295,17 +341,8 @@ void water_app_run(void)
 {
     uint32_t now = millis();
 
-    /* Comutare mod din ISR */
-    if (mode_btn_flag) {
-        mode_btn_flag = 0;
-        if (mode == OP_MODE_AUTO) {
-            mode = OP_MODE_MANUAL;
-            pump_on = 0;
-            GPIO_LOW(NANO_PIN_RELAY_PORT, NANO_PIN_RELAY_BIT);
-        } else {
-            mode = OP_MODE_AUTO;
-        }
-    }
+    /* Butoane — debounce + hold (apelat cat mai des, fara blocare) */
+    buttons_poll(now);
 
     /* Citire senzor */
     if (ELAPSED(now, t_sensor, T_SENSOR_MS)) {
@@ -325,9 +362,6 @@ void water_app_run(void)
         leds_update();
         t_sensor = now;
     }
-
-    /* Butoane */
-    buttons_poll();
 
     /* Buzzer non-blocking */
     buzzer_update();

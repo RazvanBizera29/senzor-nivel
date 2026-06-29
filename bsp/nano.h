@@ -47,10 +47,15 @@
 /* Senzor nivel HW-038 — A0 (ADC0 / PC0) */
 #define NANO_PIN_SENSOR_CH  0   /* canal ADC */
 
-/* Releu pompa — D7 (PD7) */
+/* Releu pompa umplere — D7 (PD7) */
 #define NANO_PIN_RELAY_DDR  DDRD
 #define NANO_PIN_RELAY_PORT PORTD
 #define NANO_PIN_RELAY_BIT  PD7
+
+/* Releu pompa golire — D3 (PD3) */
+#define NANO_PIN_DRAIN_DDR  DDRD
+#define NANO_PIN_DRAIN_PORT PORTD
+#define NANO_PIN_DRAIN_BIT  PD3
 
 /* Buzzer activ — D6 (PD6) */
 #define NANO_PIN_BUZZ_DDR   DDRD
